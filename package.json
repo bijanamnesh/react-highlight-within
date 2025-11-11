@@ -1,0 +1,45 @@
+{
+  "name": "react-highlight-within",
+  "version": "1.0.0",
+  "description": "Zero-dependency React utility to highlight search terms within any component tree",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.tsx --format cjs,esm --dts --clean",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "react",
+    "highlight",
+    "search",
+    "text-highlight",
+    "find",
+    "match"
+  ],
+  "author": "Bijan Seydabadi",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=16.8.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "react": "^19.2.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bijan3s/react-highlight-within"
+  }
+}
