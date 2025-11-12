@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactElement, ReactNode } from "react";
-import React, { cloneElement, isValidElement } from "react";
+import React, { cloneElement, Fragment, isValidElement } from "react";
 
 export interface HighlightOptions {
   /** The text/pattern to highlight */
@@ -10,7 +10,7 @@ export interface HighlightOptions {
   bgColor?: string;
   /** Whether search should be case-sensitive (default: false) */
   caseSensitive?: boolean;
-  /** Custom styles for highlight span */
+  /** Custom styles for highlight mark element */
   highlightStyle?: CSSProperties;
 }
 
@@ -21,9 +21,9 @@ interface MatchResult {
 }
 
 /**
- * Highlights matching text within a string and returns an array of React nodes
+ * Processes text content and returns highlighted fragments
  */
-const highlightTextContent = (
+const processTextContent = (
   text: string,
   options: HighlightOptions
 ): ReactNode => {
@@ -75,19 +75,25 @@ const highlightTextContent = (
 
     // Add highlighted match
     result.push(
-      <span
+      <mark
         key={`highlight-${index}`}
         style={{
+          display: "inline",
           backgroundColor: bgColor,
           color: textColor,
           paddingLeft: 4,
           paddingRight: 4,
           borderRadius: 2,
+          border: "none",
+          fontWeight: "inherit",
+          fontStyle: "inherit",
+          fontSize: "inherit",
+          lineHeight: "inherit",
           ...highlightStyle,
         }}
       >
         {matchItem.text}
-      </span>
+      </mark>
     );
 
     lastIndex = matchItem.end;
@@ -98,11 +104,12 @@ const highlightTextContent = (
     result.push(text.substring(lastIndex));
   }
 
-  return result;
+  return <>{result}</>;
 };
 
 /**
- * Recursively traverses React elements and highlights matching text
+ * Recursively traverses React elements and highlights matching text.
+ * Leaf text nodes are always wrapped in a span with unicodeBidi for proper text direction handling.
  * 
  * @param element - The React node to process
  * @param options - Highlighting options
@@ -127,9 +134,21 @@ export const highlightWithin = (
     return element;
   }
 
-  // Handle primitives
+  // Handle primitives (leaf nodes)
   if (typeof element === "string" || typeof element === "number") {
-    return highlightTextContent(String(element), options);
+    const processed = processTextContent(String(element), options);
+
+    // Always wrap text content in span for bidi handling
+    return (
+      <span
+        style={{
+          display: "inline",
+          unicodeBidi: "embed",
+        }}
+      >
+        {processed}
+      </span>
+    );
   }
 
   // Handle null, undefined, boolean
@@ -139,12 +158,14 @@ export const highlightWithin = (
 
   // Handle arrays
   if (Array.isArray(element)) {
-    return element.map((child, index) => highlightWithin(child, options));
+    return element.map((child, index) => (
+      <Fragment key={index}>{highlightWithin(child, options)}</Fragment>
+    ));
   }
 
   // Handle React elements
   if (isValidElement(element)) {
-    const { children } = element.props as { children?: ReactNode };
+    const { children, ...props } = element.props as any;
 
     if (children === undefined || children === null) {
       return element;
@@ -155,12 +176,34 @@ export const highlightWithin = (
       ? children.map((child) => highlightWithin(child, options))
       : highlightWithin(children, options);
 
+    // Check if this element has ONLY primitive children (leaf level)
+    const hasOnlyPrimitiveChildren = Array.isArray(children)
+      ? children.every(
+          (child) => typeof child === "string" || typeof child === "number"
+        )
+      : typeof children === "string" || typeof children === "number";
+
+    // Apply wrapper at leaf level for primitive children
+    if (hasOnlyPrimitiveChildren) {
+      const wrappedChildren = (
+        <span
+          style={{
+            display: "inline",
+            unicodeBidi: "embed",
+          }}
+        >
+          {processedChildren}
+        </span>
+      );
+      return cloneElement(element as ReactElement, props, wrappedChildren);
+    }
+
     // Avoid unnecessary cloning if children unchanged
     if (processedChildren === children) {
       return element;
     }
 
-    return cloneElement(element as ReactElement, {}, processedChildren);
+    return cloneElement(element as ReactElement, props, processedChildren);
   }
 
   return element;
